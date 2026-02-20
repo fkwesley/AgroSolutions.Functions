@@ -1,0 +1,176 @@
+﻿name: CI/CD - Common.Notifications.Function
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  # 🧩 Stage 1 - Build e Teste
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/Common.Notifications.Function.slnx
+
+      - name: Build
+        run: dotnet build src/Common.Notifications.Function.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test src/Common.Notifications.Function.slnx --configuration Release --no-build --verbosity normal
+
+      - name: Publish artifact
+        run: |
+          dotnet publish ./src/Common.Notifications.Function.csproj --configuration Release --output ./publish --no-build
+          cd publish
+          zip -r ../function.zip .
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-package
+          path: ./function.zip
+          retention-days: 7
+
+  # 🚀 Stage 2 - Deploy DEV
+  deploy-development:
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment: Development
+
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: function-package
+          path: .
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Deploy to DEV
+        uses: azure/functions-action@v1
+        with:
+          app-name: func-notifications
+          package: function.zip
+
+      - name: Configure application settings
+        run: |
+          az functionapp config appsettings set \
+            -g RG_AGRO \
+            -n func-notifications \
+            --settings \
+                "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
+                "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
+                "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
+                "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
+                "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
+                "ElasticApm__ServiceName=${{ vars.ELASTIC_APM_SERVICE_NAME }}" \
+                "ElasticApm__Environment=${{ vars.ENV }}" \
+                "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
+                "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
+                "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
+                "AspNetCore__Environment=${{ vars.ENV }}"
+
+  # 🚀 Stage 3 - Deploy Staging
+  deploy-staging:
+    needs: deploy-development
+    runs-on: ubuntu-latest
+    environment: Staging
+    
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: function-package
+          path: .
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Deploy to UAT
+        uses: azure/functions-action@v1
+        with:
+          app-name: func-notifications
+          package: function.zip
+
+      - name: Configure application settings
+        run: |
+          az functionapp config appsettings set \
+            -g RG_AGRO \
+            -n func-notifications \
+            --settings \
+                "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
+                "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
+                "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
+                "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
+                "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
+                "ElasticApm__ServiceName=${{ vars.SERVICE_NAME }}" \
+                "ElasticApm__Environment=${{ vars.ENV }}" \
+                "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
+                "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
+                "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
+                "AspNetCore__Environment=${{ vars.ENV }}"
+
+  # 🚀 Stage 4 - Deploy PRD
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: Production
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: function-package
+          path: .
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Deploy to PRD
+        uses: azure/functions-action@v1
+        with:
+          app-name: func-notifications
+          package: function.zip
+
+      - name: Configure application settings
+        run: |
+          az functionapp config appsettings set \
+            -g RG_AGRO \
+            -n func-notifications \
+            --settings \
+                "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
+                "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
+                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
+                "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
+                "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
+                "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
+                "ElasticApm__ServiceName=${{ vars.ELASTIC_APM_SERVICE_NAME }}" \
+                "ElasticApm__Environment=${{ vars.ENV }}" \
+                "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
+                "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
+                "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
+                "AspNetCore__Environment=${{ vars.ENV }}"

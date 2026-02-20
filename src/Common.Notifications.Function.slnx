@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/docs/">
+    <File Path="../docs/README.md" />
+  </Folder>
+  <Project Path="../tests/UnitTests/UnitTests.csproj" Id="dba1cf87-be96-4994-b835-1432ae2a1d3a" />
+  <Project Path="Common.Notifications.Function.csproj" />
+</Solution>

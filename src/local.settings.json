@@ -1,0 +1,20 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ServiceBusConnection": "Endpoint=sb://sb-agro.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=gID1zRkthXsUtUAcVYs6FE9sxwHT1CWAa+ASbFLd0RQ=",
+    "AzureCommunicationServices:ConnectionString": "endpoint=https://comm-agro.canada.communication.azure.com/;accesskey=5ogbzRhQi0GeA4q1z6Cod1jjdqWJpPRbk31Gut7J3GxLnY7sd5PRJQQJ99CBACULyCpMni8AAAAAAZCSCpWs",
+    "AzureCommunicationServices:SenderAddress": "DoNotReply@1a07a35e-329c-4342-898f-630f1005baa4.azurecomm.net",
+
+    "ElasticApm:Enabled": "true",
+    "ElasticApm:ServerUrl": "https://5847b5e761e34746a58b95b340f76039.apm.eastus2.azure.elastic-cloud.com:443",
+    "ElasticApm:SecretToken": "xwAfDajs8RBKHVhaAK",
+    "ElasticApm:ServiceName": "func-notifications",
+    "ElasticApm:Environment": "Development",
+
+    "ElasticLogs:Endpoint": "https://365b2d237c8f4093a4bf104003ae783c.eastus2.azure.elastic-cloud.com",
+    "ElasticLogs:ApiKey": "SEdJZlhad0JiTkdwbmpPSUViOGE6bG1YUW52Smp0b3FzSXFmbDdQUF9sUQ==",
+    "ElasticLogs:IndexPrefix": "common"
+  }
+}
