@@ -1,4 +1,4 @@
-﻿name: CI/CD - Common.Notifications.Function
+﻿name: CI/CD - AgroSolutions.Functions
 
 on:
   push:
