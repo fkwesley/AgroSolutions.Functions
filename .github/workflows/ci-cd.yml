@@ -87,7 +87,7 @@ jobs:
                 "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
                 "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
-                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
+                "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
                 "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
 
   # 🚀 Stage 3 - Deploy Staging
@@ -131,12 +131,12 @@ jobs:
                 "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
                 "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
                 "TelemetryApi__Url=${{ vars.TELEMETRY_API_URL }}" \
-                "TelemetryApi__Token=${{ secrets.TELEMETRY_API_TOKEN }}" \
+                "TelemetryApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
-                "FieldsApi__Token=${{ secrets.FIELDS_API_TOKEN }}" \
-                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSOR_ALERT_EMAIL }}" \
-                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSOR_SERVICE_NAME }}" \
-                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSOR_SERVICE_NAME }}"
+                "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
+                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
+                "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
 
   # 🚀 Stage 4 - Deploy PRD
   deploy-production:
@@ -180,9 +180,9 @@ jobs:
                 "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
                 "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
                 "TelemetryApi__Url=${{ vars.TELEMETRY_API_URL }}" \
-                "TelemetryApi__Token=${{ secrets.TELEMETRY_API_TOKEN }}" \
+                "TelemetryApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
-                "FieldsApi__Token=${{ secrets.FIELDS_API_TOKEN }}" \
-                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSOR_ALERT_EMAIL }}" \
-                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSOR_SERVICE_NAME }}" \
-                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSOR_SERVICE_NAME }}"
+                "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
+                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
+                "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
