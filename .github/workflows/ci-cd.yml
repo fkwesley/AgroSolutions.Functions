@@ -20,13 +20,13 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore src/Common.Notifications.Function.slnx
+        run: dotnet restore src/AgroSolutions.Functions.slnx
 
       - name: Build
-        run: dotnet build src/Common.Notifications.Function.slnx --configuration Release --no-restore
+        run: dotnet build src/AgroSolutions.Functions.slnx --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test src/Common.Notifications.Function.slnx --configuration Release --no-build --verbosity normal
+        run: dotnet test src/AgroSolutions.Functions.slnx --configuration Release --no-build --verbosity normal
 
       - name: Publish artifact
         run: |
@@ -63,28 +63,32 @@ jobs:
       - name: Deploy to DEV
         uses: azure/functions-action@v1
         with:
-          app-name: func-notifications
+          app-name: func-agro
           package: function.zip
 
       - name: Configure application settings
         run: |
           az functionapp config appsettings set \
             -g RG_AGRO \
-            -n func-notifications \
+            -n func-agro \
             --settings \
                 "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
                 "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
                 "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
                 "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
                 "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
-                "ElasticApm__ServiceName=${{ vars.ELASTIC_APM_SERVICE_NAME }}" \
+                "ElasticApm__ServiceName=${{ vars.SERVICE_NAME }}" \
                 "ElasticApm__Environment=${{ vars.ENV }}" \
                 "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
                 "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
                 "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
-                "AspNetCore__Environment=${{ vars.ENV }}"
+                "TelemetryApi__Url=${{ vars.TELEMETRY_API_URL }}" \
+                "TelemetryApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
+                "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
+                "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
+                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
+                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
 
   # 🚀 Stage 3 - Deploy Staging
   deploy-staging:
@@ -107,19 +111,17 @@ jobs:
       - name: Deploy to UAT
         uses: azure/functions-action@v1
         with:
-          app-name: func-notifications
+          app-name: func-agro
           package: function.zip
 
       - name: Configure application settings
         run: |
           az functionapp config appsettings set \
             -g RG_AGRO \
-            -n func-notifications \
+            -n func-agro \
             --settings \
                 "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
                 "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
                 "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
                 "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
                 "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
@@ -128,7 +130,13 @@ jobs:
                 "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
                 "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
                 "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
-                "AspNetCore__Environment=${{ vars.ENV }}"
+                "TelemetryApi__Url=${{ vars.TELEMETRY_API_URL }}" \
+                "TelemetryApi__Token=${{ secrets.TELEMETRY_API_TOKEN }}" \
+                "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
+                "FieldsApi__Token=${{ secrets.FIELDS_API_TOKEN }}" \
+                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSOR_ALERT_EMAIL }}" \
+                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSOR_SERVICE_NAME }}" \
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSOR_SERVICE_NAME }}"
 
   # 🚀 Stage 4 - Deploy PRD
   deploy-production:
@@ -152,25 +160,29 @@ jobs:
       - name: Deploy to PRD
         uses: azure/functions-action@v1
         with:
-          app-name: func-notifications
+          app-name: func-agro
           package: function.zip
 
       - name: Configure application settings
         run: |
           az functionapp config appsettings set \
             -g RG_AGRO \
-            -n func-notifications \
+            -n func-agro \
             --settings \
                 "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" \
                 "ServiceBusConnection=${{ secrets.SB_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__ConnectionString=${{ secrets.ACS_CONNECTIONSTRING }}" \
-                "AzureCommunicationServices__SenderAddress=${{ vars.ACS_SENDER_ADDRESS }}" \
                 "ElasticApm__Enabled=${{ vars.ELASTIC_APM_ENABLED }}" \
                 "ElasticApm__ServerUrl=${{ vars.ELASTIC_APM_URL }}" \
                 "ElasticApm__SecretToken=${{ secrets.ELASTIC_APM_TOKEN }}" \
-                "ElasticApm__ServiceName=${{ vars.ELASTIC_APM_SERVICE_NAME }}" \
+                "ElasticApm__ServiceName=${{ vars.SERVICE_NAME }}" \
                 "ElasticApm__Environment=${{ vars.ENV }}" \
                 "ElasticLogs__Endpoint=${{ vars.ELASTIC_LOGS_ENDPOINT }}" \
                 "ElasticLogs__ApiKey=${{ secrets.ELASTIC_LOGS_API_KEY }}" \
                 "ElasticLogs__IndexPrefix=${{ vars.ELASTIC_LOGS_INDEX_PREFIX }}" \
-                "AspNetCore__Environment=${{ vars.ENV }}"
+                "TelemetryApi__Url=${{ vars.TELEMETRY_API_URL }}" \
+                "TelemetryApi__Token=${{ secrets.TELEMETRY_API_TOKEN }}" \
+                "FieldsApi__Url=${{ vars.FIELDS_API_URL }}" \
+                "FieldsApi__Token=${{ secrets.FIELDS_API_TOKEN }}" \
+                "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSOR_ALERT_EMAIL }}" \
+                "CollectSensorData__ServiceNames=${{ vars.COLLECT_SENSOR_SERVICE_NAME }}" \
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSOR_SERVICE_NAME }}"
