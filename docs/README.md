@@ -7,6 +7,7 @@
 - [Overview](#-overview)
 - [Tecnologias Utilizadas](#-tecnologias-utilizadas)
 - [Functions](#-functions)
+  - [CollectSensorData](#collectsensordata)
   - [ProcessSensorData](#processsensordata)
 - [Payload Esperado](#-payload-esperado)
 - [Arquitetura](#-arquitetura)
@@ -24,6 +25,7 @@ A **AgroSolutions.Functions** é um projeto de Azure Functions serverless (Isola
 
 ### Para que serve?
 
+- ✅ **Coleta Automática de Dados**: Timer trigger diário que consulta campos ativos e coleta dados climáticos reais via API Open-Meteo
 - ✅ **Ingestão de Dados de Sensores**: Recebe medições de campo (umidade, temperatura, precipitação) via Service Bus e encaminha para a API de Telemetria
 - ✅ **Processamento Assíncrono**: Desacopla ingestão de dados do fluxo principal da aplicação
 - ✅ **Escalabilidade Automática**: Processa mensagens sob demanda com Azure Functions
@@ -55,11 +57,49 @@ A **AgroSolutions.Functions** é um projeto de Azure Functions serverless (Isola
   - `ServiceInfoEnricher` - Adiciona ServiceName e Environment
 
 ### Integrações
+- **API de Fields** (`aks-agro-fields`) - Retorna campos ativos com latitude/longitude
+- **Open-Meteo API** - API pública de dados climáticos (temperatura, precipitação)
 - **API de Telemetria** (`aks-agro-telemetry`) - Recebe dados de sensores via HTTP POST
 
 ---
 
 ## ⚡ Functions
+
+### CollectSensorData
+
+Coleta diária automática de dados climáticos para todos os campos ativos, publicando mensagens na fila para processamento posterior.
+
+**Trigger:** `TimerTrigger("0 0 6 * * *")` — Executa diariamente às 06:00 UTC
+
+**Output:** `ServiceBusOutput("sensor-data-received-queue")`
+
+#### Fluxo de Processamento
+
+```
+Timer trigger (06:00 UTC)
+     │
+     ▼
+Inicia Transaction no Elastic APM
+     │
+     ▼
+[Span] Fetch Active Fields
+     │   GET → API de Fields (com Bearer token)
+     │   Filtra apenas campos com isActive = true
+     │   ❌ Sem campos ativos → retorna vazio
+     │
+     ▼
+[Span] Collect Weather Data for Fields
+     │   Para cada campo ativo:
+     │     ├─ GET → Open-Meteo API (latitude/longitude do campo)
+     │     │   Obtém: AirTemperature + Precipitation
+     │     │   ❌ Falha → usa dados mockados (25.5°C / 2.3mm)
+     │     ├─ Mock: SoilMoisture (20-80% aleatório)
+     │     └─ Serializa SensorDataRequest
+     │
+     ▼
+Publica mensagem(s) na fila via output binding ✅
+(uma mensagem por campo ativo)
+```
 
 ### ProcessSensorData
 
@@ -127,20 +167,35 @@ Complete message ✅
 ### Arquitetura High-Level
 
 ```
-┌─────────────────────┐
-│   Producer           │ (API, Worker, etc.)
-│   Application        │
-└──────────┬──────────┘
-           │ Publica mensagem
+┌─────────────────────────────────────────────────────────────┐
+│                    COLETA DE DADOS (Timer)                   │
+└─────────────────────────────────────────────────────────────┘
+
+  Timer (06:00 UTC diário)
+           │
+           ▼
+┌──────────────────────────────────┐
+│  CollectSensorDataFunction        │
+│  ├─ ApiClientService              │ → GET Fields API (campos ativos)
+│  ├─ ApiClientService              │ → GET Open-Meteo (temperatura, precipitação)
+│  ├─ Mock SoilMoisture             │ → Gera valor aleatório (20-80%)
+│  └─ ServiceBusOutput              │ → Publica na fila
+└──────────┬───────────────────────┘
+           │ 1 mensagem por campo ativo
            ▼
 ┌──────────────────────────────────┐
 │  Azure Service Bus Queue          │
 │  "sensor-data-received-queue"     │
 └──────────┬───────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                 PROCESSAMENTO DE DADOS (Queue)               │
+└─────────────────────────────────────────────────────────────┘
+
            │ Service Bus Trigger
            ▼
 ┌──────────────────────────────────┐
-│  SensorDataFunction               │
+│  ProcessSensorDataFunction        │
 │  ├─ MessageTracingService         │ → Extrai CorrelationId + Traceparent
 │  ├─ Parse & Validate              │ → Deserializa e valida payload
 │  └─ ApiClientService              │ → POST para API de Telemetria
@@ -176,7 +231,8 @@ Complete message ✅
 AgroSolutions.Functions/
 │
 ├── Functions/                  # Azure Functions (entry points)
-│   └── SensorDataFunction.cs           # Service Bus Trigger - Dados de sensores
+│   ├── CollectSensorDataFunction.cs    # Timer Trigger - Coleta diária de dados climáticos
+│   └── ProcessSensorDataFunction.cs    # Service Bus Trigger - Processamento de dados de sensores
 │
 ├── Interfaces/                 # Contratos e abstrações
 │   ├── IApiClientService.cs            # Interface do client HTTP
@@ -187,6 +243,8 @@ AgroSolutions.Functions/
 │   └── ServiceInfoEnricher.cs          # Adiciona ServiceName e Environment
 │
 ├── Models/                     # DTOs e modelos
+│   ├── FieldResponse.cs                # DTO de resposta da API de Fields
+│   ├── OpenMeteoResponse.cs            # DTO de resposta da API Open-Meteo
 │   ├── SensorDataRequest.cs            # DTO de dados de sensores
 │   └── TracingContext.cs               # Contexto de tracing (CorrelationId + Traceparent)
 │
@@ -219,6 +277,23 @@ AgroSolutions.Functions/
 | `TelemetryApi:Url` | URL da API de Telemetria | ✅ |
 | `TelemetryApi:Token` | Bearer token para autenticação | ✅ |
 
+#### API de Fields
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `FieldsApi:Url` | URL da API de Fields (ex: `https://host/v1/fields`) | ✅ |
+| `FieldsApi:Token` | Bearer token para autenticação | ✅ |
+
+#### CollectSensorData
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `CollectSensorData:AlertEmailTo` | Email de alerta para as medições coletadas | ✅ |
+| `CollectSensorData:ServiceNames` | Service name no Elastic APM (default: `func-agro-collect-data`) | ❌ |
+
+#### ProcessSensorData
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `ProcessSensorData:ServiceName` | Service name no Elastic APM (default: `func-agro-process-data`) | ❌ |
+
 #### Elastic APM
 | Chave | Descrição | Obrigatório |
 |-------|-----------|:-----------:|
@@ -244,8 +319,13 @@ AgroSolutions.Functions/
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ServiceBusConnection": "Endpoint=sb://your-namespace.servicebus.windows.net/;...",
-    "TelemetryApi:Url": "https://aks-agro-telemetry.yourdomain.com/api/FieldMeasurements/Add/v1",
+    "TelemetryApi:Url": "https://aks-agro-telemetry.yourdomain.com/v1/field-measurements",
     "TelemetryApi:Token": "your-bearer-token",
+    "FieldsApi:Url": "https://aks-agro-fields.yourdomain.com/v1/fields",
+    "FieldsApi:Token": "your-bearer-token",
+    "CollectSensorData:AlertEmailTo": "agronomist@farm.com",
+    "CollectSensorData:ServiceNames": "func-agro-collect-data",
+    "ProcessSensorData:ServiceName": "func-agro-process-data",
     "ElasticApm:Enabled": "true",
     "ElasticApm:ServerUrl": "https://your-apm.elastic-cloud.com",
     "ElasticApm:SecretToken": "your-secret-token",

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using AgroSolutions.Functions.Interfaces;
+using AgroSolutions.Functions.Logging;
 using AgroSolutions.Functions.Models;
 using Elastic.Apm;
 using Elastic.Apm.Api;
@@ -10,27 +11,32 @@ using Microsoft.Extensions.Logging;
 
 namespace AgroSolutions.Functions.Functions;
 
-public class SensorDataFunction
+public class ProcessSensorDataFunction
 {
-    private readonly ILogger<SensorDataFunction> _logger;
+    private readonly ILogger<ProcessSensorDataFunction> _logger;
     private readonly IApiClientService _apiClientService;
     private readonly IMessageTracingService _messageTracingService;
+    private readonly ServiceInfoEnricher _serviceInfoEnricher;
     private readonly string _telemetryApiUrl;
     private readonly string _telemetryApiToken;
+    private readonly string _functionServiceName;
 
-    public SensorDataFunction(
-        ILogger<SensorDataFunction> logger,
+    public ProcessSensorDataFunction(
+        ILogger<ProcessSensorDataFunction> logger,
         IApiClientService apiClientService,
         IMessageTracingService messageTracingService,
+        ServiceInfoEnricher serviceInfoEnricher,
         IConfiguration configuration)
     {
         _logger = logger;
         _apiClientService = apiClientService;
         _messageTracingService = messageTracingService;
+        _serviceInfoEnricher = serviceInfoEnricher;
         _telemetryApiUrl = configuration["TelemetryApi:Url"]
             ?? throw new InvalidOperationException("TelemetryApi:Url is not configured.");
         _telemetryApiToken = configuration["TelemetryApi:Token"]
             ?? throw new InvalidOperationException("TelemetryApi:Token is not configured.");
+        _functionServiceName = configuration["ProcessSensorData:ServiceName"] ?? "func-agro-process-data";
     }
 
     [Function("ProcessSensorData")]
@@ -39,6 +45,8 @@ public class SensorDataFunction
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions)
     {
+        _serviceInfoEnricher.SetServiceName(_functionServiceName);
+
         var tracingContext = _messageTracingService.ExtractTracingContext(message);
 
         var transaction = Agent.Tracer.StartTransaction(
@@ -47,6 +55,7 @@ public class SensorDataFunction
 
         try
         {
+            transaction.SetLabel("FunctionServiceName", _functionServiceName);
             transaction.SetLabel("CorrelationId", tracingContext.CorrelationId);
             transaction.SetLabel("MessageId", message.MessageId);
 

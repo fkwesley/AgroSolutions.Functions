@@ -54,8 +54,9 @@ if (!string.IsNullOrEmpty(elasticEndpoint) && !string.IsNullOrEmpty(elasticApiKe
 
 Log.Logger = loggerConfiguration.CreateLogger();
 
-// Registra o enricher no DI para ser usado na function
+// Registra os enrichers no DI para serem usados nas functions
 builder.Services.AddSingleton(correlationIdEnricher);
+builder.Services.AddSingleton(serviceInfoEnricher);
 
 // Configura Serilog como provider de logging
 builder.Services.AddLogging(loggingBuilder =>
