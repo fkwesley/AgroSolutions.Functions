@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Common.Notifications.Function.csproj" />
+    <ProjectReference Include="..\..\src\AgroSolutions.Functions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

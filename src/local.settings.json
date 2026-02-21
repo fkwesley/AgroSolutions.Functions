@@ -4,17 +4,18 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ServiceBusConnection": "Endpoint=sb://sb-agro.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=gID1zRkthXsUtUAcVYs6FE9sxwHT1CWAa+ASbFLd0RQ=",
-    "AzureCommunicationServices:ConnectionString": "endpoint=https://comm-agro.canada.communication.azure.com/;accesskey=5ogbzRhQi0GeA4q1z6Cod1jjdqWJpPRbk31Gut7J3GxLnY7sd5PRJQQJ99CBACULyCpMni8AAAAAAZCSCpWs",
-    "AzureCommunicationServices:SenderAddress": "DoNotReply@1a07a35e-329c-4342-898f-630f1005baa4.azurecomm.net",
 
     "ElasticApm:Enabled": "true",
     "ElasticApm:ServerUrl": "https://5847b5e761e34746a58b95b340f76039.apm.eastus2.azure.elastic-cloud.com:443",
     "ElasticApm:SecretToken": "xwAfDajs8RBKHVhaAK",
-    "ElasticApm:ServiceName": "func-notifications",
+    "ElasticApm:ServiceName": "func-agro",
     "ElasticApm:Environment": "Development",
 
     "ElasticLogs:Endpoint": "https://365b2d237c8f4093a4bf104003ae783c.eastus2.azure.elastic-cloud.com",
     "ElasticLogs:ApiKey": "SEdJZlhad0JiTkdwbmpPSUViOGE6bG1YUW52Smp0b3FzSXFmbDdQUF9sUQ==",
-    "ElasticLogs:IndexPrefix": "common"
+    "ElasticLogs:IndexPrefix": "agro",
+
+    "TelemetryApi:Url": "https://localhost:7245/v1/field-measurements",
+    "TelemetryApi:Token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJURUNILUZVTkNUSU9OUyIsInVzZXJfaWQiOiJURUNILUZVTkNUSU9OUyIsInVzZXJfZW1haWwiOiJzdXBwb3J0QGFncm9zb2x1dGlvbnMuY29tIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZSI6IkNPTlRBIFTDiUNOSUNBIC0gQVpVUkUgRlVOQ1RJT05TIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiVXNlciIsImV4cCI6MjUzNDAyMzAwODAwLCJpc3MiOiJDb21tb24uVXNlcnMifQ.hNrkDIQvLKZ5lM8Orrrs3CJrUwV3IRyaifxcQot52fM"
   }
 }

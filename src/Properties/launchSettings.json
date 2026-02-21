@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "Common.Notifications.Function": {
+    "AgroSolutions.Functions": {
       "commandName": "Project",
       "commandLineArgs": "--port 7264",
       "launchBrowser": false

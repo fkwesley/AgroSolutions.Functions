@@ -1,5 +1,6 @@
-using Common.Notifications.Function.Configuration;
-using Common.Notifications.Function.Logging;
+using AgroSolutions.Functions.Interfaces;
+using AgroSolutions.Functions.Logging;
+using AgroSolutions.Functions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
@@ -13,11 +14,11 @@ var builder = FunctionsApplication.CreateBuilder(args);
 
 // Configura Serilog
 var configuration = builder.Configuration;
-var serviceName = configuration["ElasticApm:ServiceName"] ?? "func-notifications";
+var serviceName = configuration["ElasticApm:ServiceName"] ?? "func-agro";
 var environment = configuration["ElasticApm:Environment"] ?? "Development";
 var elasticEndpoint = configuration["ElasticLogs:Endpoint"];
 var elasticApiKey = configuration["ElasticLogs:ApiKey"];
-var indexPrefix = configuration["ElasticLogs:IndexPrefix"] ?? "common";
+var indexPrefix = configuration["ElasticLogs:IndexPrefix"] ?? "agro";
 
 // Cria enrichers customizados
 var correlationIdEnricher = new CorrelationIdEnricher();
@@ -68,8 +69,9 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
 
-// Registra os serviços de email
-builder.Services.AddEmailServices();
+// Registra os serviços de tracing e API
+builder.Services.AddSingleton<IMessageTracingService, MessageTracingService>();
+builder.Services.AddHttpClient<IApiClientService, ApiClientService>();
 
 // Configura Elastic APM para Azure Functions
 var elasticEnabled = configuration.GetValue<bool>("ElasticApm:Enabled");

@@ -1,7 +1,7 @@
 using Serilog.Core;
 using Serilog.Events;
 
-namespace Common.Notifications.Function.Logging;
+namespace AgroSolutions.Functions.Logging;
 
 public class ServiceInfoEnricher : ILogEventEnricher
 {

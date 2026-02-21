@@ -1,86 +1,124 @@
-# Common.Notifications.Function
+# AgroSolutions.Functions
 
-> Azure Function serverless para processamento assíncrono de notificações por email com templates HTML profissionais, integrada ao Azure Service Bus e Azure Communication Services.
+> Azure Function serverless para coleta e processamento assíncrono de dados de sensores agrícolas, integrada ao Azure Service Bus, Elastic APM e API de Telemetria.
 
 ## 📋 Índice
 
 - [Overview](#-overview)
 - [Tecnologias Utilizadas](#-tecnologias-utilizadas)
+- [Functions](#-functions)
+  - [ProcessSensorData](#processsensordata)
 - [Payload Esperado](#-payload-esperado)
 - [Arquitetura](#-arquitetura)
+- [Observabilidade](#-observabilidade)
 - [Estrutura de Pastas](#-estrutura-de-pastas)
-- [Extensibilidade](#-extensibilidade)
-- [Testes](#-testes)
-- [CI/CD](#-cicd)
+- [Configuração](#-configuração)
 - [Quick Start](#-quick-start)
+- [CI/CD](#-cicd)
 
 ---
 
 ## 🎯 Overview
 
-A **Common.Notifications.Function** é uma Azure Function serverless que processa notificações de email de forma assíncrona através do Azure Service Bus.
+A **AgroSolutions.Functions** é um projeto de Azure Functions serverless (Isolated Process) que processa eventos agrícolas de forma assíncrona através do Azure Service Bus.
 
 ### Para que serve?
 
-- ✅ **Processamento Assíncrono**: Desacopla envio de emails do fluxo principal da aplicação
+- ✅ **Ingestão de Dados de Sensores**: Recebe medições de campo (umidade, temperatura, precipitação) via Service Bus e encaminha para a API de Telemetria
+- ✅ **Processamento Assíncrono**: Desacopla ingestão de dados do fluxo principal da aplicação
 - ✅ **Escalabilidade Automática**: Processa mensagens sob demanda com Azure Functions
-- ✅ **Emails via Templates**: Templates HTML customizáveis pré-configurados
-- ✅ **Rastreabilidade**: Correlation ID em toda cadeia de processamento
-- ✅ **Observabilidade**: Integração com Elastic APM e logs estruturados (Serilog)
-- ✅ **Resiliência**: Dead Letter Queue automática para falhas
-- ✅ **Type-Safe**: Validação forte de tipos com enums e DTOs
+- ✅ **Rastreabilidade**: Correlation ID propagado em toda cadeia
+- ✅ **Distributed Tracing**: Integração com Elastic APM para traces end-to-end via W3C Trace Context
+- ✅ **Observabilidade**: Logs estruturados com Serilog + Elasticsearch
+- ✅ **Resiliência**: Dead Letter Queue para falhas de deserialização/validação e retry automático para rate limiting (HTTP 429)
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 ### Core Framework
-- **.NET 10** - Framework principal (LTS)
-- **C# 13** - Linguagem de programação
-- **Azure Functions v4** - Serverless compute platform
+- **.NET 10** - Framework principal
+- **C# 14** - Linguagem de programação
+- **Azure Functions v4** - Serverless compute (Isolated Process)
 
 ### Azure Services
 - **Azure Service Bus** - Message broker assíncrono (Queue trigger)
-- **Azure Communication Services** - Email delivery provider
 - **Application Insights** - Telemetria e monitoramento
 
 ### Observabilidade
-- **Elastic APM** - Application Performance Monitoring
+- **Elastic APM** - Application Performance Monitoring e Distributed Tracing
 - **Serilog** - Logging estruturado
   - Console Sink
   - Elasticsearch Sink
-- **Custom Enrichers** - CorrelationId, ServiceInfo, ThreadId, MachineName
+- **Custom Enrichers**:
+  - `CorrelationIdEnricher` - Adiciona CorrelationId a cada log event
+  - `ServiceInfoEnricher` - Adiciona ServiceName e Environment
+
+### Integrações
+- **API de Telemetria** (`aks-agro-telemetry`) - Recebe dados de sensores via HTTP POST
+
+---
+
+## ⚡ Functions
+
+### ProcessSensorData
+
+Consome mensagens da fila `sensor-data-received-queue`, valida os dados de sensores e encaminha para a API de Telemetria.
+
+**Trigger:** `ServiceBusTrigger("sensor-data-received-queue")`
+
+#### Fluxo de Processamento
+
+```
+Mensagem recebida
+     │
+     ▼
+Extrai TracingContext (CorrelationId + Traceparent)
+     │
+     ▼
+Inicia Transaction no Elastic APM
+     │
+     ▼
+[Span] Parse Service Bus Message
+     │   Deserializa JSON → SensorDataRequest
+     │   ❌ Falha → Dead Letter (DeserializationError)
+     │
+     ▼
+Validação de campos
+     │   ❌ Falha → Dead Letter (ValidationError)
+     │
+     ▼
+[Span] Send Sensor Data to Telemetry API
+     │   POST → API de Telemetria (com Bearer token)
+     │   Headers: x-correlation-id (manual) + traceparent (auto via APM agent)
+     │
+     ▼
+Complete message ✅
+```
 
 ---
 
 ## 📦 Payload Esperado
 
-### Estrutura do NotificationRequest
+### SensorDataRequest (fila `sensor-data-received-queue`)
 
 ```json
 {
-  "TemplateId": "Drought",
-  "EmailTo": [
-    "agronomist@farm.com",
-    "manager@farm.com"
-  ],
-  "EmailCc": [
-    "supervisor@farm.com"
-  ],
-  "EmailBcc": [
-    "audit@company.com"
-  ],
-  "Parameters": {  //dinâmicos para cada template
-    "{fieldId}": "42",
-    "{severity}": "Alta",
-    "{recommendations}": "Iniciar irrigação imediatamente"
-  },
-  "Metadata": {
-    "CorrelationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "Severity": "High"
-  }
+  "fieldId": 42,
+  "soilMoisture": 35.5,
+  "airTemperature": 28.3,
+  "precipitation": 12.0,
+  "collectedAt": "2025-01-15T10:30:00Z",
+  "alertEmailTo": "agronomist@farm.com"
 }
 ```
+
+### Application Properties da Mensagem (opcionais)
+
+| Property | Descrição |
+|----------|-----------|
+| `CorrelationId` | ID de correlação (fallback se `message.CorrelationId` estiver vazio) |
+| `traceparent` | W3C Trace Context para distributed tracing |
 
 ---
 
@@ -89,293 +127,115 @@ A **Common.Notifications.Function** é uma Azure Function serverless que process
 ### Arquitetura High-Level
 
 ```
-┌─────────────────┐
-│   Producer      │ (API, Worker, etc.)
-│   Application   │
-└────────┬────────┘
-         │ Publica mensagem
-         ▼
-┌─────────────────────────────────┐
-│   Azure Service Bus Queue       │
-│   "notifications-queue"          │
-└────────┬────────────────────────┘
-         │ Service Bus Trigger
-         ▼
-┌─────────────────────────────────┐
-│  NotificationFunction            │
-│  • Deserializa payload           │
-│  • Extrai CorrelationId          │
-│  • Valida requisição             │
-└────────┬────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  EmailTemplateService            │
-│  • Orquestra processamento       │
-│  • Seleciona template            │
-└────────┬────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  EmailTemplateFactory            │
-│  • Cria instância do template    │
-│  • Factory Pattern               │
-└────────┬────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  Template Específico             │
-│  (DroughtTemplate, etc.)         │
-│  • Gera Subject                  │
-│  • Gera HTML Body                │
-│  • Substitui parâmetros          │
-└────────┬────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  AzureCommunicationEmailService  │
-│  • Envia email                   │
-│  • Retry automático              │
-└────────┬────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  Azure Communication Services    │
-│  • Email Delivery                │
-└─────────────────────────────────┘
+┌─────────────────────┐
+│   Producer           │ (API, Worker, etc.)
+│   Application        │
+└──────────┬──────────┘
+           │ Publica mensagem
+           ▼
+┌──────────────────────────────────┐
+│  Azure Service Bus Queue          │
+│  "sensor-data-received-queue"     │
+└──────────┬───────────────────────┘
+           │ Service Bus Trigger
+           ▼
+┌──────────────────────────────────┐
+│  SensorDataFunction               │
+│  ├─ MessageTracingService         │ → Extrai CorrelationId + Traceparent
+│  ├─ Parse & Validate              │ → Deserializa e valida payload
+│  └─ ApiClientService              │ → POST para API de Telemetria
+└──────────┬───────────────────────┘
+           │ HTTP POST (Bearer token)
+           │ Headers: x-correlation-id, traceparent (auto)
+           ▼
+┌──────────────────────────────────┐
+│  API de Telemetria                │
+│  (aks-agro-telemetry)             │
+│  └─ Persiste dados de sensores    │
+└──────────────────────────────────┘
 
-      ┌───────────────────────┐
-      │  Elastic APM          │ ◄─── Traces & Metrics
-      │  Elasticsearch Logs   │ ◄─── Structured Logs
-      └───────────────────────┘
+  ┌─────────────────────────────┐
+  │  Elastic APM                │ ◄── Transactions, Spans & Distributed Traces
+  │  Elasticsearch              │ ◄── Structured Logs (Serilog)
+  │  Application Insights       │ ◄── Telemetria Azure
+  └─────────────────────────────┘
 ```
 
-### Padrões Arquiteturais Aplicados
+### Padrões Aplicados
 
-- ✅ **SOLID Principles** - Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
-- ✅ **Factory Pattern** - `EmailTemplateFactory` cria templates dinamicamente
-- ✅ **Template Method Pattern** - `EmailTemplateBase` define estrutura comum
-- ✅ **Strategy Pattern** - Cada template é uma estratégia de geração
 - ✅ **Dependency Injection** - IoC container nativo do .NET
-- ✅ **Domain-Driven Design (DDD)** - Modelos ricos, value objects, entities
-- ✅ **Clean Architecture** - Separação de camadas (Domain, Application, Infrastructure)
+- ✅ **Interface Segregation** - `IApiClientService`, `IMessageTracingService`
+- ✅ **Single Responsibility** - Cada serviço com responsabilidade clara
+- ✅ **Typed HttpClient** - `AddHttpClient<IApiClientService, ApiClientService>()`
 
 ---
 
 ## 📁 Estrutura de Pastas
 
 ```
-Common.Notifications.Function/
-│
-├── Configuration/              # Configurações e setup do projeto
-│   └── EmailServiceConfiguration.cs   # Extension methods para DI
+AgroSolutions.Functions/
 │
 ├── Functions/                  # Azure Functions (entry points)
-│   ├── NotificationFunction.cs         # Service Bus Trigger principal
-│   └── NotificationFunctionTests.cs    # Function de teste HTTP
+│   └── SensorDataFunction.cs           # Service Bus Trigger - Dados de sensores
 │
 ├── Interfaces/                 # Contratos e abstrações
-│   ├── IEmailService.cs                # Interface do serviço de email
-│   └── IEmailTemplateService.cs        # Interface de templates
+│   ├── IApiClientService.cs            # Interface do client HTTP
+│   └── IMessageTracingService.cs       # Interface de extração de tracing
 │
 ├── Logging/                    # Logging estruturado e enrichers
 │   ├── CorrelationIdEnricher.cs        # Adiciona CorrelationId aos logs
-│   └── ServiceInfoEnricher.cs          # Adiciona metadados do serviço
+│   └── ServiceInfoEnricher.cs          # Adiciona ServiceName e Environment
 │
-├── Models/                     # DTOs e modelos de domínio
-│   ├── AlertMetadata.cs                # Metadados de alertas
-│   ├── EmailMessage.cs                 # Modelo de mensagem de email
-│   ├── EmailSendResult.cs              # Resultado de envio
-│   ├── EmailTemplateType.cs            # Enum de tipos de template
-│   └── NotificationRequest.cs          # DTO de requisição
+├── Models/                     # DTOs e modelos
+│   ├── SensorDataRequest.cs            # DTO de dados de sensores
+│   └── TracingContext.cs               # Contexto de tracing (CorrelationId + Traceparent)
 │
 ├── Services/                   # Implementações de serviços
-│   ├── AzureCommunicationEmailService.cs    # Integração com Azure Communication Services
-│   └── EmailTemplateService.cs              # Orquestração de templates
+│   ├── ApiClientService.cs             # Client HTTP genérico com suporte a tracing
+│   └── MessageTracingService.cs        # Extrai tracing context de mensagens Service Bus
 │
-├── Templates/                  # Factory e templates de email
-│   ├── EmailTemplateBase.cs            # Classe base abstrata
-│   ├── EmailTemplateFactory.cs         # Factory pattern
-│   ├── IEmailTemplate.cs               # Interface de templates
-│   ├── DroughtTemplate.cs              # Template de seca
-│   ├── ExcessiveRainfallTemplate.cs    # Template de chuva
-│   ├── ExtremeHeatTemplate.cs          # Template de calor
-│   ├── FreezingTemperatureTemplate.cs  # Template de geada
-│   ├── HeatStressTemplate.cs           # Template de estresse térmico
-│   ├── IrrigationTemplate.cs           # Template de irrigação
-│   └── PestRiskTemplate.cs             # Template de pragas
+├── docs/                       # Documentação
+│   └── README.md
 │
-├── docs/                       # Documentação completa
-├── tests/                      # Testes unitários e integração
 ├── host.json                   # Configuração do Azure Functions host
 ├── local.settings.json         # Configurações locais (não versionado)
-└── Program.cs                  # Entry point e configuração de DI
-
+└── Program.cs                  # Entry point, DI e configuração de Serilog/APM
 ```
 
 ---
 
-## 🔧 Extensibilidade
+## ⚙️ Configuração
 
-### 🆕 Como Adicionar um Novo Template
+### Variáveis de Configuração
 
-**3 Passos Simples:**
+#### Service Bus
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `ServiceBusConnection` | Connection string do Azure Service Bus | ✅ |
 
-#### 1️⃣ Adicionar ao Enum `EmailTemplateType`
+#### API de Telemetria
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `TelemetryApi:Url` | URL da API de Telemetria | ✅ |
+| `TelemetryApi:Token` | Bearer token para autenticação | ✅ |
 
-```csharp
-// Models/EmailTemplateType.cs
-public enum EmailTemplateType
-{
-    // ... templates existentes
+#### Elastic APM
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `ElasticApm:Enabled` | Habilita Elastic APM (`true`/`false`) | ❌ |
+| `ElasticApm:ServerUrl` | URL do servidor APM | ❌ |
+| `ElasticApm:SecretToken` | Token de autenticação do APM | ❌ |
+| `ElasticApm:ServiceName` | Nome do serviço no APM (default: `func-agro`) | ❌ |
+| `ElasticApm:Environment` | Ambiente no APM (default: `Development`) | ❌ |
 
-    [Display(Name = "Fertilization")]
-    Fertilization
-}
-```
+#### Elastic Logs (Serilog → Elasticsearch)
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `ElasticLogs:Endpoint` | URL do Elasticsearch | ❌ |
+| `ElasticLogs:ApiKey` | API Key do Elasticsearch | ❌ |
+| `ElasticLogs:IndexPrefix` | Prefixo do índice (default: `agro`) | ❌ |
 
-#### 2️⃣ Criar Classe do Template
-
-```csharp
-// Templates/FertilizationTemplate.cs
-namespace Common.Notifications.Function.Templates;
-
-public class FertilizationTemplate : EmailTemplateBase
-{
-    protected override string GetSubject(Dictionary<string, string> parameters)
-    {
-        return "🌱 Recomendação de Fertilização";
-    }
-
-    protected override string GetHtmlBody(Dictionary<string, string> parameters)
-    {
-        return $@"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='utf-8'>
-            <style>
-                body {{ font-family: Arial, sans-serif; }}
-                .header {{ background: #28a745; color: white; padding: 20px; }}
-                .content {{ padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class='header'>
-                <h1>🌱 Recomendação de Fertilização</h1>
-            </div>
-            <div class='content'>
-                <p>Talhão: <strong>{parameters.GetValueOrDefault("{fieldId}", "N/A")}</strong></p>
-                <p>Cultura: <strong>{parameters.GetValueOrDefault("{cropType}", "N/A")}</strong></p>
-                <p>Nutriente Recomendado: <strong>{parameters.GetValueOrDefault("{nutrient}", "N/A")}</strong></p>
-                <p>Dosagem: <strong>{parameters.GetValueOrDefault("{dosage}", "N/A")} kg/ha</strong></p>
-            </div>
-        </body>
-        </html>";
-    }
-}
-```
-
-#### 3️⃣ Registrar no Factory
-
-```csharp
-// Templates/EmailTemplateFactory.cs
-public class EmailTemplateFactory
-{
-    public IEmailTemplate CreateTemplate(string templateId)
-    {
-        return templateId switch
-        {
-            // ... templates existentes
-
-            nameof(EmailTemplateType.Fertilization) => new FertilizationTemplate(),
-
-            _ => throw new ArgumentException($"Template '{templateId}' não encontrado.")
-        };
-    }
-}
-```
-
-**Pronto! ✅** Seu novo template está disponível.
-
----
-
-## 🧪 Testes
-
-### Estrutura de Testes
-
-```
-tests/
-└── UnitTests/
-    ├── Services/
-    │   ├── EmailTemplateServiceTests.cs
-    │   └── AzureCommunicationEmailServiceTests.cs
-    ├── Templates/
-    │   ├── DroughtTemplateTests.cs
-    │   ├── ExcessiveRainfallTemplateTests.cs
-    │   └── EmailTemplateFactoryTests.cs
-    ├── Functions/
-    │   └── NotificationFunctionTests.cs
-    └── UnitTests.csproj
-```
-
-### Executar Testes
-
-```bash
-# Via CLI
-dotnet test
-
-# Via Visual Studio
-Test Explorer → Run All
-
-# Com Coverage
-dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-```
-
----
-
-## 🚀 CI/CD
-
-### Pipeline Recomendado (Azure DevOps / GitHub Actions)
-
-| Environment | Branch | Auto-Deploy |
-|-------------|--------|-------------|
-| **Development** | `develop` | ✅ Sim |
-| **Staging** | `release/*` | ✅ Sim |
-| **Production** | `main` | ⚠️ Manual approval |
-
-### Checklist de Deploy
-
-- ✅ Testes unitários passando
-- ✅ Build sem warnings
-- ✅ Configurações de ambiente corretas (`ServiceBusConnection`, `AzureCommunicationServices:ConnectionString`)
-- ✅ Elastic APM configurado
-- ✅ Application Insights habilitado
-- ✅ Dead Letter Queue configurada
-
----
-
-## ⚡ Quick Start
-
-### 1️⃣ Pré-requisitos
-
-```bash
-# Verificar instalações
-dotnet --version    # Deve ser .NET 10
-func --version      # Deve ser Azure Functions Core Tools v4
-```
-
-### 2️⃣ Clonar e Configurar
-
-```bash
-git clone https://github.com/fkwesley/Common.Notifications.Function.git
-cd Common.Notifications.Function
-
-# Copiar template de configuração
-cp local.settings.template.json local.settings.json
-```
-
-### 3️⃣ Configurar `local.settings.json`
+### Exemplo `local.settings.json`
 
 ```json
 {
@@ -384,17 +244,41 @@ cp local.settings.template.json local.settings.json
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ServiceBusConnection": "Endpoint=sb://your-namespace.servicebus.windows.net/;...",
-    "AzureCommunicationServices:ConnectionString": "endpoint=https://your-acs.communication.azure.com/;...",
-    "AzureCommunicationServices:SenderEmail": "noreply@yourapp.com",
+    "TelemetryApi:Url": "https://aks-agro-telemetry.yourdomain.com/api/FieldMeasurements/Add/v1",
+    "TelemetryApi:Token": "your-bearer-token",
     "ElasticApm:Enabled": "true",
-    "ElasticApm:ServerUrl": "http://localhost:8200",
-    "ElasticApm:ServiceName": "func-notifications",
-    "ElasticApm:Environment": "Development"
+    "ElasticApm:ServerUrl": "https://your-apm.elastic-cloud.com",
+    "ElasticApm:SecretToken": "your-secret-token",
+    "ElasticApm:ServiceName": "func-agro",
+    "ElasticApm:Environment": "Development",
+    "ElasticLogs:Endpoint": "https://your-es.elastic-cloud.com",
+    "ElasticLogs:ApiKey": "your-api-key",
+    "ElasticLogs:IndexPrefix": "agro"
   }
 }
 ```
 
-### 4️⃣ Executar Localmente
+---
+
+## ⚡ Quick Start
+
+### 1️⃣ Pré-requisitos
+
+```bash
+dotnet --version    # .NET 10
+func --version      # Azure Functions Core Tools v4
+```
+
+### 2️⃣ Clonar e Configurar
+
+```bash
+git clone https://github.com/fkwesley/AgroSolutions.Functions.git
+cd AgroSolutions.Functions
+
+# Configurar local.settings.json com suas credenciais
+```
+
+### 3️⃣ Executar Localmente
 
 ```bash
 # Via CLI
@@ -404,8 +288,30 @@ func start
 Pressione F5
 ```
 
+### 4️⃣ Testar
+
+Publique uma mensagem na fila `sensor-data-received-queue` do Service Bus com o payload JSON descrito na seção [Payload Esperado](#-payload-esperado).
+
 ---
 
- ## ✍️ Autor
+## 🚀 CI/CD
+
+| Environment | Branch | Auto-Deploy |
+|-------------|--------|:-----------:|
+| **Development** | `develop` | ✅ |
+| **Staging** | `release/*` | ✅ |
+| **Production** | `main` | ⚠️ Manual approval |
+
+### Checklist de Deploy
+
+- ✅ Build sem warnings
+- ✅ Configurações de ambiente corretas (`ServiceBusConnection`, `TelemetryApi:*`)
+- ✅ Elastic APM configurado
+- ✅ Application Insights habilitado
+- ✅ Dead Letter Queue configurada no Service Bus
+
+---
+
+## ✍️ Autor
 - Frank Vieira
 - GitHub: @fkwesley
