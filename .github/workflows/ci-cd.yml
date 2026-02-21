@@ -30,7 +30,7 @@ jobs:
 
       - name: Publish artifact
         run: |
-          dotnet publish ./src/Common.Notifications.Function.csproj --configuration Release --output ./publish --no-build
+          dotnet publish ./src/AgroSolutions.Functions.csproj --configuration Release --output ./publish --no-build
           cd publish
           zip -r ../function.zip .
           cd ..
