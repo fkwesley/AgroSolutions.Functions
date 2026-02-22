@@ -134,8 +134,8 @@ public class CollectSensorDataFunction
         {
             transaction.CaptureException(ex);
 
-            _logger.LogError(ex, "Error in CollectSensorData");
-            return [];
+            _logger.LogError(ex, "Error in CollectSensorData - {ErrorMessage}", ex.Message);
+            throw;
         }
         finally
         {
