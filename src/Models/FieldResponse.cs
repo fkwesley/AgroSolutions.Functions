@@ -32,8 +32,8 @@ public class FieldResponse
     public int ActiveCropSeasons { get; set; }
 
     [JsonPropertyName("createdAt")]
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
     [JsonPropertyName("updatedAt")]
-    public DateTime UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
