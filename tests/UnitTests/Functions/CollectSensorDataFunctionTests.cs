@@ -165,7 +165,7 @@ public class CollectSensorDataFunctionTests
     }
 
     [Fact]
-    public async Task CollectSensorData_WhenFieldsApiThrows_ReturnsEmptyArray()
+    public async Task CollectSensorData_WhenFieldsApiThrows_PropagatesException()
     {
         // Arrange
         _mockApiClient
@@ -174,10 +174,11 @@ public class CollectSensorDataFunctionTests
             .ThrowsAsync(new HttpRequestException("Connection refused"));
 
         // Act
-        var result = await _sut.CollectSensorData(new TimerInfo());
+        var act = () => _sut.CollectSensorData(new TimerInfo());
 
         // Assert
-        result.Should().BeEmpty();
+        await act.Should().ThrowAsync<HttpRequestException>()
+            .WithMessage("Connection refused");
     }
 
     [Fact]
