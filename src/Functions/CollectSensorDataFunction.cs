@@ -41,8 +41,8 @@ public class CollectSensorDataFunction
 
     [Function("CollectSensorData")]
     [ServiceBusOutput("sensor-data-received-queue", Connection = "ServiceBusConnection")]
-    public async Task<string[]> CollectSensorData([TimerTrigger("0 0 * * * *")] TimerInfo timerInfo)
-    {                                                                   // Executa a cada hora, no início da hora (ex: 01:00:00, 02:00:00, etc.)
+    public async Task<string[]> CollectSensorData([TimerTrigger("0 0 0,12 * * *")] TimerInfo timerInfo)
+    {                                                                   // Executa diariamente às 00:00 e 12:00
         _serviceInfoEnricher.SetServiceName(_functionServiceName);
 
         var transaction = Agent.Tracer.StartTransaction(
