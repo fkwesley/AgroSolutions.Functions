@@ -1,6 +1,7 @@
 using AgroSolutions.Functions.Interfaces;
 using AgroSolutions.Functions.Logging;
 using AgroSolutions.Functions.Services;
+using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
@@ -73,6 +74,11 @@ builder.Services
 // Registra os serviços de tracing e API
 builder.Services.AddSingleton<IMessageTracingService, MessageTracingService>();
 builder.Services.AddHttpClient<IApiClientService, ApiClientService>();
+
+// Registra ServiceBusClient para acesso direto à DLQ (ReprocessSensorDataFunction)
+var serviceBusConnectionString = configuration["ServiceBusConnection"];
+if (!string.IsNullOrEmpty(serviceBusConnectionString))
+    builder.Services.AddSingleton(new ServiceBusClient(serviceBusConnectionString));
 
 // Configura Elastic APM para Azure Functions
 var elasticEnabled = configuration.GetValue<bool>("ElasticApm:Enabled");

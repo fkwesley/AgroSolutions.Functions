@@ -9,6 +9,7 @@
 - [Functions](#-functions)
   - [CollectSensorData](#collectsensordata)
   - [ProcessSensorData](#processsensordata)
+  - [ReprocessSensorData](#reprocesssensordata)
 - [Payload Esperado](#-payload-esperado)
 - [Arquitetura](#-arquitetura)
 - [Observabilidade](#-observabilidade)
@@ -33,6 +34,7 @@ A **AgroSolutions.Functions** é um projeto de Azure Functions serverless (Isola
 - ✅ **Distributed Tracing**: Integração com Elastic APM para traces end-to-end via W3C Trace Context
 - ✅ **Observabilidade**: Logs estruturados com Serilog + Elasticsearch
 - ✅ **Resiliência**: Dead Letter Queue para falhas de deserialização/validação e retry automático para rate limiting (HTTP 429)
+- ✅ **Reprocessamento de DLQ**: Function automática que reprocessa mensagens da Dead Letter Queue com controle de tentativas (máx. 3)
 
 ---
 
@@ -136,6 +138,41 @@ Validação de campos
 Complete message ✅
 ```
 
+### ReprocessSensorData
+
+Reprocessa automaticamente mensagens da Dead Letter Queue (DLQ) da fila `sensor-data-received-queue`. Controla o número de tentativas via propriedade `DlqRetryCount` e remove permanentemente mensagens que excedem o limite.
+
+**Trigger:** `TimerTrigger("0 0 3 * * *")` — Executa diariamente às 03:00 UTC
+
+**Retry máximo:** 3 tentativas
+
+**Batch:** Até 50 mensagens por execução
+
+#### Fluxo de Processamento
+
+```
+Timer trigger (03:00 UTC)
+     │
+     ▼
+Inicia Transaction no Elastic APM
+     │
+     ▼
+Recebe até 50 mensagens da DLQ
+     │
+     ▼
+Para cada mensagem:
+     │
+     ├─ DlqRetryCount >= 3?
+     │   ├─ SIM → Log de erro + Remove permanentemente da DLQ
+     │   └─ NÃO → Reenvia para fila original com:
+     │         ├─ DlqRetryCount incrementado
+     │         ├─ DlqReprocessedAt (timestamp)
+     │         └─ DlqOriginalReason (motivo original)
+     │
+     ▼
+Log resumo: Reprocessed={N}, Discarded={N} ✅
+```
+
 ---
 
 ## 📦 Payload Esperado
@@ -231,8 +268,9 @@ Complete message ✅
 AgroSolutions.Functions/
 │
 ├── Functions/                  # Azure Functions (entry points)
-│   ├── CollectSensorDataFunction.cs    # Timer Trigger - Coleta diária de dados climáticos
-│   └── ProcessSensorDataFunction.cs    # Service Bus Trigger - Processamento de dados de sensores
+│   ├── CollectSensorDataFunction.cs       # Timer Trigger - Coleta diária de dados climáticos
+│   ├── ProcessSensorDataFunction.cs       # Service Bus Trigger - Processamento de dados de sensores
+│   └── ReprocessSensorDataFunction.cs     # Timer Trigger - Reprocessamento da DLQ
 │
 ├── Interfaces/                 # Contratos e abstrações
 │   ├── IApiClientService.cs            # Interface do client HTTP
@@ -293,6 +331,11 @@ AgroSolutions.Functions/
 | Chave | Descrição | Obrigatório |
 |-------|-----------|:-----------:|
 | `ProcessSensorData:ServiceName` | Service name no Elastic APM (default: `func-agro-process-data`) | ❌ |
+
+#### ReprocessSensorData
+| Chave | Descrição | Obrigatório |
+|-------|-----------|:-----------:|
+| `ReprocessSensorData:ServiceName` | Service name no Elastic APM (default: `func-agro-reprocess-sensor-data`) | ❌ |
 
 #### Elastic APM
 | Chave | Descrição | Obrigatório |

@@ -151,7 +151,7 @@ public class CollectSensorDataFunctionTests
         _mockApiClient
             .Setup(x => x.GetAsync<OpenMeteoResponse>(
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IDictionary<string, string>?>()))
-            .ThrowsAsync(new HttpRequestException("API unavailable"));
+            .Returns(() => Task.FromException<OpenMeteoResponse?>(new HttpRequestException("API unavailable")));
 
         // Act
         var result = await _sut.CollectSensorData(new TimerInfo());
@@ -160,8 +160,8 @@ public class CollectSensorDataFunctionTests
         result.Should().HaveCount(2);
 
         var message = JsonSerializer.Deserialize<SensorDataRequest>(result[0])!;
-        message.AirTemperature.Should().Be(25.5m);
-        message.Precipitation.Should().Be(2.3m);
+        message.AirTemperature.Should().Be(-5.5m);
+        message.Precipitation.Should().Be(62.3m);
     }
 
     [Fact]

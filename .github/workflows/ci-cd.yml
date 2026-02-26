@@ -1,4 +1,4 @@
-﻿name: CI/CD - AgroSolutions.Functions
+name: CI/CD - AgroSolutions.Functions
 
 on:
   push:
@@ -88,7 +88,8 @@ jobs:
                 "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
                 "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
-                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}" \
+                "ReprocessSensorData__ServiceName=${{ vars.REPROCESS_SENSORDATA_SERVICE_NAME }}"
 
   # 🚀 Stage 3 - Deploy Staging
   deploy-staging:
@@ -136,7 +137,8 @@ jobs:
                 "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
                 "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
-                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}" \
+                "ReprocessSensorData__ServiceName=${{ vars.REPROCESS_SENSORDATA_SERVICE_NAME }}"
 
   # 🚀 Stage 4 - Deploy PRD
   deploy-production:
@@ -185,4 +187,5 @@ jobs:
                 "FieldsApi__Token=${{ secrets.AGRO_API_TOKEN }}" \
                 "CollectSensorData__AlertEmailTo=${{ vars.COLLECT_SENSORDATA_ALERT_EMAIL }}" \
                 "CollectSensorData__ServiceName=${{ vars.COLLECT_SENSORDATA_SERVICE_NAME }}" \
-                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}"
+                "ProcessSensorData__ServiceName=${{ vars.PROCESS_SENSORDATA_SERVICE_NAME }}" \
+                "ReprocessSensorData__ServiceName=${{ vars.REPROCESS_SENSORDATA_SERVICE_NAME }}"

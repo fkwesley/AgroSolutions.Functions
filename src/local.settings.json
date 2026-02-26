@@ -24,6 +24,7 @@
     "CollectSensorData:AlertEmailTo": "fk.vieira@hotmail.com",
     "CollectSensorData:ServiceName": "func-agro-collect-data",
 
-    "ProcessSensorData:ServiceName:": "func-agro-process-data"
+    "ProcessSensorData:ServiceName:": "func-agro-process-data",
+    "ReprocessSensorData:ServiceName": "func-agro-reprocess-sensor-data"
   }
 }
