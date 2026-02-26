@@ -161,7 +161,7 @@ public class CollectSensorDataFunction
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to retrieve weather data for lat={Latitude}, lon={Longitude}. Using mock data.", latitude, longitude);
-            return (25.5m, 2.3m);
+            return (-5.5m, 62.3m);
         }
     }
 }
