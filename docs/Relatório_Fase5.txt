@@ -1,0 +1,28 @@
+
+
+Relatório Fase 5 - Hackaton AgroSolutions
+POS TECH Arquitetura de Sistemas .NET com Azure
+
+Nome do grupo: 
+	Grupo 73
+
+Participantes e usernames no Discord: 
+	FRANK VIEIRA 
+		Discord: frank.vieira
+		E-mail: frank-wesley95@hotmail.com 
+	 
+Link da documentação:
+	https://miro.com/app/board/uXjVG8Dv-m8=/?share_link_id=590883209204
+	** mais detalhes na pasta "docs" de cada repositório
+	
+Link do(s) repositório(s):
+	https://github.com/fkwesley/Common.Users					>> API para cadastros e autenticação dos usuários (produtores rurais)
+	https://github.com/fkwesley/AgroSolutions.Farms             >> API para gerenciamento das fazendas, talhões e temporada de plantios
+	https://github.com/fkwesley/AgroSolutions.Telemetry         >> API para telemetria dos dados dos sensores
+	https://github.com/fkwesley/AgroSolutions.Functions         >> Azure Functions para coleta diária e processamento dos dados de sensor
+	https://github.com/fkwesley/Common.Notifications.Function   >> Azure Functions para envio de alertas
+	
+Link do vídeo:
+	https://youtu.be/gQLOlJ2EWxc
+	
+	
