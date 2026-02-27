@@ -1,6 +1,9 @@
 # AgroSolutions.Functions
 
+> [Vídeo de Apresentação](https://youtu.be/gQLOlJ2EWxc)
+
 > Azure Function serverless para coleta e processamento assíncrono de dados de sensores agrícolas, integrada ao Azure Service Bus, Elastic APM e API de Telemetria.
+
 
 ## 📋 Índice
 
